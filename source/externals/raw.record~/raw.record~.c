@@ -110,6 +110,7 @@ void raw_record_int(t_raw_record *x, long i)
 		x->rec_enabled = 1;
 		x->buffer_head = 0;
 		x->buffer_tail = 0;
+		x->frame_count = 0;
 		x->sample_count = 0;
 		x->byte_count = 0;
 	} else { // Stop
@@ -148,10 +149,15 @@ void raw_record_close(t_raw_record *x)
 	
 	// Notify
 	atom_setsym(notify_list, gensym("file"));
+	atom_setsym(notify_list + 1, gensym("frames"));
+	atom_setlong(notify_list + 2, x->frame_count);
+	outlet_list(x->notify_out, 0L, 3, notify_list);
+
+	atom_setsym(notify_list, gensym("file"));
 	atom_setsym(notify_list + 1, gensym("samples"));
 	atom_setlong(notify_list + 2, x->sample_count);
 	outlet_list(x->notify_out, 0L, 3, notify_list);
-	
+
 	atom_setsym(notify_list, gensym("file"));
 	atom_setsym(notify_list + 1, gensym("bytes"));
 	atom_setlong(notify_list + 2, x->byte_count);
@@ -226,6 +232,7 @@ void raw_record_perform64(t_raw_record *x, t_object *dsp64, double **ins, long n
 			atom_setlong(&argv, x->buffer_head & ((1 << x->buffer_size_exponent) - 1)); // tail % buffer_size
 			defer(x, (method)raw_record_dowrite, NULL, 1, &argv);
 		}
+		x->frame_count += sampleframes;
 		x->sample_count += numins * sampleframes;
 		x->buffer_head = x->buffer_head & ((1 << x->buffer_size_exponent) - 1); // head % buffer_size
 	}
