@@ -4,7 +4,7 @@ sysbuild
 *.sln
 *.opensdf
 log.txt
-externals
+/externals/
 support
 build/
 build-*/
