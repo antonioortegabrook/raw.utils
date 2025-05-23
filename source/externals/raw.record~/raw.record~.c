@@ -205,7 +205,6 @@ void raw_record_create(t_raw_record *x, t_symbol *s, long argc, t_atom *argv)
 
 void raw_record_dsp64(t_raw_record *x, t_object *dsp64, short *count, double samplerate, long maxvectorsize, long flags)
 {
-//	long leftinletchannelcount = (long)object_method(dsp64,gensym("getnuminputchannels"), x, 0);
 	object_method(dsp64, gensym("dsp_add64"), x, raw_record_perform64, 0, NULL);
 }
 
