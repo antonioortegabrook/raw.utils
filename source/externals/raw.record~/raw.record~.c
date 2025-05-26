@@ -130,7 +130,6 @@ void raw_record_open(t_raw_record *x, t_symbol *s)
 void raw_record_close(t_raw_record *x)
 {
 	t_atom notify_list[3];
-//	t_atom *notify_list = list;
 	t_ptr_size leftover_size;
 	t_ptr_size nbytes;
 	if (x->buffer_head >= x->buffer_tail) {
@@ -138,7 +137,6 @@ void raw_record_close(t_raw_record *x)
 	} else {
 		leftover_size = x->buffer_size - x->buffer_tail + x->buffer_head;
 	}
-	x->sample_count += leftover_size;
 	nbytes = leftover_size * sizeof(double);
 
 	sysfile_write(x->fh, &nbytes, x->write_buffer + x->buffer_tail);
@@ -166,7 +164,7 @@ void raw_record_close(t_raw_record *x)
 
 void raw_record_dowrite(t_raw_record *x, t_symbol *s, long argc, t_atom *argv)
 {
-	t_ptr_size nbytes = sizeof(double) * x->buffer_size >> 1;
+	t_ptr_size nbytes = sizeof(double) * (x->buffer_size >> 1);
 
 	sysfile_write(x->fh, &nbytes, x->write_buffer + x->buffer_tail);
 	x->byte_count += nbytes;
@@ -219,22 +217,23 @@ void raw_record_perform64(t_raw_record *x, t_object *dsp64, double **ins, long n
 	uint64_t offset;
 	if (x->rec_enabled) {
 		t_atom argv;
-		
+
 		for (int i = 0; i < sampleframes; i++) {
 			for (int j = 0; j < numins; j++) {
-				*(x->write_buffer + x->buffer_head + i * numins + j) = ins[j][i]; // Interleave
+				*(x->write_buffer + x->buffer_head) = ins[j][i];
+				x->sample_count++;
+				x->buffer_head++;
+				
+				if (x->buffer_head == x->buffer_size >> 1 || x->buffer_head == x->buffer_size) {
+					// Do write!
+					atom_setlong(&argv, x->buffer_head & ((1 << x->buffer_size_exponent) - 1)); // tail % buffer_size
+					defer(x, (method)raw_record_dowrite, NULL, 1, &argv);
+				}
+				x->buffer_head = x->buffer_head & ((1 << x->buffer_size_exponent) - 1); // head % buffer_size
+				
 			}
+			x->frame_count++;
 		}
-		x->buffer_head += numins * sampleframes;
-		
-		if (x->buffer_head == x->buffer_size >> 1 || x->buffer_head == x->buffer_size) {
-			// Do write!
-			atom_setlong(&argv, x->buffer_head & ((1 << x->buffer_size_exponent) - 1)); // tail % buffer_size
-			defer(x, (method)raw_record_dowrite, NULL, 1, &argv);
-		}
-		x->frame_count += sampleframes;
-		x->sample_count += numins * sampleframes;
-		x->buffer_head = x->buffer_head & ((1 << x->buffer_size_exponent) - 1); // head % buffer_size
 	}
 }
 
@@ -243,16 +242,12 @@ static inline uint64_t next_pow2(uint64_t n)
 {
 	if (!n)
 		return 0;
-	n--;
-	n |= 1;
-	n |= 2;
-	n |= 4;
-	n |= 8;
-	n |= 16;
-	n |= 32;
-	n++;
-	
-	return n;
+	// (naive but effective)
+	uint64_t x = 1;
+	   while (x < n) {
+	       x = x << 1;
+	   }
+	   return x;
 }
 
 static inline uint64_t pow2_exponent(uint64_t n)
