@@ -147,6 +147,11 @@ void raw_record_close(t_raw_record *x)
 	
 	// Notify
 	atom_setsym(notify_list, gensym("file"));
+	atom_setsym(notify_list + 1, gensym("channels"));
+	atom_setlong(notify_list + 2, x->nchannels);
+	outlet_list(x->notify_out, 0L, 3, notify_list);
+	
+	atom_setsym(notify_list, gensym("file"));
 	atom_setsym(notify_list + 1, gensym("frames"));
 	atom_setlong(notify_list + 2, x->frame_count);
 	outlet_list(x->notify_out, 0L, 3, notify_list);
