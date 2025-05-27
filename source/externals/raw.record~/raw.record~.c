@@ -117,7 +117,7 @@ void raw_record_int(t_raw_record *x, long i)
 		if (x->rec_enabled) {
 			// Write leftovers to file
 			x->rec_enabled = 0;
-			defer_low(x, (method)raw_record_close, NULL, 0, NULL);
+			defer(x, (method)raw_record_close, NULL, 0, NULL);
 		}
 	}
 }
