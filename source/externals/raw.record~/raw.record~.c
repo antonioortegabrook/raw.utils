@@ -107,6 +107,10 @@ void raw_record_int(t_raw_record *x, long i)
 			object_error((t_object *)x, "Error: no file open");
 			return;
 		} // else
+		if (x->rec_enabled) {
+			object_warn((t_object *)x, "Already recording");
+			return;
+		}
 		x->rec_enabled = 1;
 		x->buffer_head = 0;
 		x->buffer_tail = 0;
