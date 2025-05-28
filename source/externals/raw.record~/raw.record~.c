@@ -16,11 +16,11 @@ typedef struct _raw_record {
 	uint64_t	byte_count;
 	uint64_t	frame_count;
 	uint64_t	buffer_size;	// Samples
-	uint64_t	buffer_size_exponent;
-	
+
 	uint64_t	buffer_head;
 	uint64_t	buffer_tail;
 	double		*write_buffer;
+
 	t_outlet	*notify_out;
 } t_raw_record;
 
@@ -66,7 +66,6 @@ void* raw_record_new(long n)
 		x->nchannels = !n ? 1 : labs(n);
 		x->fh = NULL;
 		x->buffer_size = next_pow2((8192 * x->nchannels)); // en el futuro, hacer variable?
-		x->buffer_size_exponent = pow2_exponent(x->buffer_size);
 		x->write_buffer = (double *)malloc(sizeof(double) * x->buffer_size);
 		x->buffer_head = 0;
 		x->buffer_tail = 0;
@@ -174,7 +173,7 @@ void raw_record_dowrite(t_raw_record *x, t_symbol *s, long argc, t_atom *argv)
 	sysfile_write(x->fh, &nbytes, x->write_buffer + x->buffer_tail);
 	x->byte_count += nbytes;
 	x->buffer_tail += x->buffer_size >> 1;
-	x->buffer_tail &= ((1 << x->buffer_size_exponent) - 1); // tail % buffer_size
+	x->buffer_tail &= (x->buffer_size - 1); // tail % buffer_size
 }
 
 void raw_record_create(t_raw_record *x, t_symbol *s, long argc, t_atom *argv)
@@ -221,8 +220,6 @@ void raw_record_perform64(t_raw_record *x, t_object *dsp64, double **ins, long n
 {
 	uint64_t offset;
 	if (x->rec_enabled) {
-		t_atom argv;
-
 		for (int i = 0; i < sampleframes; i++) {
 			for (int j = 0; j < numins; j++) {
 				*(x->write_buffer + x->buffer_head) = ins[j][i];
@@ -231,11 +228,9 @@ void raw_record_perform64(t_raw_record *x, t_object *dsp64, double **ins, long n
 				
 				if (x->buffer_head == x->buffer_size >> 1 || x->buffer_head == x->buffer_size) {
 					// Do write!
-					atom_setlong(&argv, x->buffer_head & ((1 << x->buffer_size_exponent) - 1)); // tail % buffer_size
-					defer(x, (method)raw_record_dowrite, NULL, 1, &argv);
+					defer(x, (method)raw_record_dowrite, NULL, 0, NULL);
 				}
-				x->buffer_head = x->buffer_head & ((1 << x->buffer_size_exponent) - 1); // head % buffer_size
-				
+				x->buffer_head = x->buffer_head & (x->buffer_size - 1); // head % buffer_size
 			}
 			x->frame_count++;
 		}
